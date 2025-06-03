@@ -1,17 +1,33 @@
-# Use official Golang image
-FROM golang:1.22
+# ---- Build stage ----
+FROM golang:1.22 AS builder
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy Go source files
+# Copy go.mod and download dependencies
+COPY go.mod ./
+RUN go mod download
+
+# Copy all source code
 COPY . .
 
-# Build the Go application
-RUN go build -o main .
+# Build statically linked binary for Linux (no CGO)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main .
 
-# Expose the port your app runs on
+# ---- Final stage (distroless) ----
+FROM gcr.io/distroless/static:nonroot
+
+# Copy binary to root directory
+COPY --from=builder /app/main /main
+
+# If you have static files (HTML etc.), copy them too
+COPY --from=builder /app/static /static
+
+# Expose port your app listens on
 EXPOSE 8080
 
-# Run the app
-CMD ["./main"]
+# Use non-root user for security
+USER nonroot:nonroot
+
+# Run your app
+ENTRYPOINT ["/main"]
+
