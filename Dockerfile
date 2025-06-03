@@ -3,29 +3,25 @@ FROM golang:1.22 AS builder
 
 WORKDIR /app
 
-# Copy go.mod and install dependencies
 COPY go.mod ./
 RUN go mod download
 
-# Copy and build
 COPY . .
 
-# Build a go application
-RUN go build -o main .
+# Build a statically linked binary for Linux
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main .
 
-# ---- STAGE 2: Create minimal final image ----
+# ---- STAGE 2: Minimal final image ----
 FROM gcr.io/distroless/static:nonroot
 
-# Copy binary from builder
-COPY --from=builder /app/main .
+# Copy binary explicitly to root /
+COPY --from=builder /app/main /main
 
-# Copied static content
-COPY --from=builder /app/static ./static
+# Copy static folder if any
+COPY --from=builder /app/static /static
 
 EXPOSE 8080
 
-# Use non-root user (UID 65532)
 USER nonroot:nonroot
 
-# Command to run and not easy to override this
 CMD ["/main"]
