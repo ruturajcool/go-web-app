@@ -28,4 +28,4 @@ EXPOSE 8080
 USER nonroot:nonroot
 
 # Command to run and not easy to override this
-CMD ["./main"]
+CMD ["/main"]
